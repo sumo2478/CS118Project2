@@ -45,9 +45,19 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 		return -1;
 	}
 
-	/* TODO: Verify checksum is correct */
-
 	struct sr_ip_hdr* ip_header = (struct sr_ip_hdr*) (packet + sizeof(struct sr_ethernet_hdr));
+
+	/* TODO: Verify checksum is correct */
+	uint16_t original_checksum = ip_header->ip_sum;
+	ip_header->ip_sum = 0;
+	if (original_checksum != calculate_checksum(ip_header))
+	{
+		printf("Checksum Error\n");
+		return -1;
+	}else
+	{
+		printf("Checksum passed\n");
+	}
 
 	/* Determine the next ip destination */
 	struct sr_rt* routing_node = sr->routing_table;
@@ -67,28 +77,19 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 		routing_node = routing_node->next;
 	}
 
-	struct sr_ip_hdr* ip_reply = (struct sr_ip_hdr*) malloc(sizeof(struct sr_ip_hdr));
-	ip_reply->ip_hl  = ip_header->ip_hl;
-	ip_reply->ip_v   = ip_header->ip_v;
-	ip_reply->ip_tos = ip_header->ip_tos;
-	ip_reply->ip_len = ip_header->ip_len;
-	ip_reply->ip_id  = ip_header->ip_id;
-	ip_reply->ip_off = ip_header->ip_off;
-	ip_reply->ip_ttl = ip_header->ip_ttl--;
-	ip_reply->ip_p   = ip_header->ip_p;
-	ip_reply->ip_sum = 0;
-	ip_reply->ip_src = ip_header->ip_src;
-	ip_reply->ip_dst = ip_header->ip_dst;
-
-	calculate_checksum(ip_reply);
+	/* Update values in ip header */
+	ip_header->ip_ttl--;
+	ip_header->ip_sum = 0;
+	ip_header->ip_sum = calculate_checksum(ip_header);
 
 	/* Determine the MAC address to send to */
-	struct sr_ethernet_hdr* ethernet_reply = (struct sr_ethernet_hdr*)malloc(sizeof(struct sr_ethernet_hdr));
+	struct sr_ethernet_hdr* ethernet_reply = (struct sr_ethernet_hdr*) packet;
 	struct sr_if* routing_interface = sr_get_interface(sr, destination_node->interface); 
 
 	memcpy(ethernet_reply->ether_shost, routing_interface->addr, ETHER_ADDR_LEN);
 
 	struct sr_arpentry* arp_entry = sr_arpcache_lookup(&sr->cache, ip_header->ip_dst);
+
 	int status = 0;
 	/* ARP entry located in the queue */
 	if (arp_entry)
@@ -97,12 +98,7 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 		memcpy(ethernet_reply->ether_dhost, arp_entry->mac, ETHER_ADDR_LEN);
 
 		 /* Place headers into packet buffer */
-	    unsigned int buffer_length = sizeof(struct sr_ethernet_hdr) + sizeof(struct sr_ip_hdr);
-	    uint8_t* buffer = (uint8_t*)malloc(buffer_length);
-	    memcpy(buffer, ethernet_reply, sizeof(struct sr_ethernet_hdr));
-	    memcpy(buffer + sizeof(struct sr_ethernet_hdr), ip_reply, sizeof(struct sr_ip_hdr));
-
-	    status = sr_send_packet(sr, buffer, buffer_length, destination_node->interface);
+	    status = sr_send_packet(sr, packet, len, destination_node->interface);
 
 		free(arp_entry);
 	}
@@ -110,19 +106,10 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 	else
 	{	
 		 /* Place headers into packet buffer */
-	    unsigned int buffer_length = sizeof(struct sr_ethernet_hdr) + sizeof(struct sr_ip_hdr);
-	    uint8_t* buffer = (uint8_t*)malloc(buffer_length);
-	    memcpy(buffer, ethernet_reply, sizeof(struct sr_ethernet_hdr));
-	    memcpy(buffer + sizeof(struct sr_ethernet_hdr), ip_reply, sizeof(struct sr_ip_hdr));
-
-		struct sr_arpreq* arp_request = sr_arpcache_queuereq(&sr->cache, ip_header->ip_dst, buffer, buffer_length, destination_node->interface);
+		struct sr_arpreq* arp_request = sr_arpcache_queuereq(&sr->cache, ip_header->ip_dst, packet, len, destination_node->interface);
 		handle_arpreq(arp_request);
 		return 0;
 	}
-	
-
-	free(ip_reply);
-	free(ethernet_reply);
 
     printf("Handling IP packet\n");
     return status;

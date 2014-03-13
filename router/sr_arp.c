@@ -68,7 +68,29 @@ int handle_arp(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* 
     }else if(ntohs(arp_header->ar_op) == arp_op_reply)
     {
     	printf("Handling ARP Reply\n");
-        /* TODO: handle ARP Reply */
+
+        /* Insert the MAC to IP mapping into the cache */
+        struct sr_arpreq* req = sr_arpcache_insert(&sr->cache, eth_header->ether_shost, arp_header->ar_sip);
+
+        if (req)
+        {
+            /* Handle all the packets associated with this request */
+            struct sr_packet* current_packet = req->packets;
+
+            while(current_packet)
+            {
+                printf("Sending packet\n");
+                /* Add in the destination MAC address for the packet */
+                struct sr_ethernet_hdr* ethernet_packet = (struct sr_ethernet_hdr*) current_packet->buf;
+                memcpy(ethernet_packet->ether_dhost, eth_header->ether_shost, ETHER_ADDR_LEN);
+
+                sr_send_packet(sr, current_packet->buf, current_packet->len, current_packet->iface);
+                current_packet = current_packet->next;
+            }
+
+
+            sr_arpreq_destroy(&sr->cache, req);
+        }
     }else
     {
     	return -1;
