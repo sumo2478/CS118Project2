@@ -84,7 +84,7 @@ void sr_handlepacket(struct sr_instance* sr,
 
   /* Obtain the ethernet header*/
   struct sr_ethernet_hdr* eth_header = (struct sr_ethernet_hdr*) packet;
-  
+
   /* Determine the type of ethernet frame */
   if (ntohs(eth_header->ether_type) == ethertype_ip)
   {

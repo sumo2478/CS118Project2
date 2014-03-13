@@ -30,6 +30,13 @@ int handle_arp(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* 
     	/* Obtain the correct interface */
     	struct sr_if* inter = sr_get_interface(sr, interface);
 
+        /* Determine if the arp request corresponds to the given interface and if not drop the packet */
+        if (inter->ip != arp_header->ar_tip)
+        {
+            printf("ARP request does not correspond to this interface");
+            return 0;
+        }
+
     	/* Construct the reply */
     	struct sr_arp_hdr* arp_reply = (struct sr_arp_hdr*)malloc(sizeof(struct sr_arp_hdr));
 
