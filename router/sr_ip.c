@@ -35,13 +35,12 @@ uint16_t calculate_checksum(struct sr_ip_hdr* ip_header)
 	return (uint16_t) check_sum;
 }
 
-
-
 int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* interface)
 {
-	if (len < sizeof(struct sr_ip_hdr))
+	if (len < sizeof(struct sr_ip_hdr) + sizeof(struct sr_ethernet_hdr))
 	{
 		printf("Bad IP Packet\n");
+		/* TODO: Send ICMP Bad IP Packet error */
 		return -1;
 	}
 
@@ -53,10 +52,8 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 	if (original_checksum != calculate_checksum(ip_header))
 	{
 		printf("Checksum Error\n");
+		/* TODO: Send ICMP checksum error */
 		return -1;
-	}else
-	{
-		printf("Checksum passed\n");
 	}
 
 	/* Determine the next ip destination */
@@ -75,6 +72,15 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 		}
 
 		routing_node = routing_node->next;
+	}
+
+	/* Check to make sure the TTL hasn't run out 
+	    Use 1 because we decrement to 0 */
+	if (ip_header->ip_ttl == 1)
+	{
+		printf("TTL expired\n");
+		/* TODO: Send ICMP checksum error */
+		return -1;
 	}
 
 	/* Update values in ip header */
