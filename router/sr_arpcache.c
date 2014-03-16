@@ -26,7 +26,14 @@ void handle_arpreq(struct sr_arpreq* arp_request)
   See the comments in the header file for an idea of what it should look like.
 */
 void sr_arpcache_sweepreqs(struct sr_instance *sr) { 
-    /* Fill this in */
+    
+    struct sr_arpreq *itr= sr->cache.requests;
+    while(itr != NULL)
+    {
+        struct sr_arpreq* next= itr->next;
+        handle_arpreq(sr, itr);
+        itr= next;
+    }
 }
 
 /* You should not need to touch the rest of this code. */
@@ -253,4 +260,190 @@ void *sr_arpcache_timeout(void *sr_ptr) {
     
     return NULL;
 }
+
+void handle_arpreq(struct sr_instance* sr, struct sr_arpreq *req)
+
+{
+    
+    time_t now;
+    
+    time ( &now );
+    
+    if(difftime(now, req->sent) > 1.0)
+        
+    {
+        
+        if(req->times_sent >= 5)
+            
+        {
+            
+            /* Send icmp host unreachable to source addr of all pkts waiting on this request */
+            
+            sr_arpreq_destroy(&sr->cache, req);
+            
+        }
+        
+        else
+            
+        {
+            
+            /* Broadcast arp request */
+            
+            
+            
+            /*Construct an interface holders*/
+            
+            struct sr_if* eth1 = (struct sr_if*)malloc(sizeof(struct sr_if));
+            
+            struct sr_if* eth2 = (struct sr_if*)malloc(sizeof(struct sr_if));
+            
+            struct sr_if* eth3 = (struct sr_if*)malloc(sizeof(struct sr_if));
+            
+            eth1= sr_get_interface(sr, "eth1");
+            
+            eth2= sr_get_interface(sr, "eth2");
+            
+            eth3= sr_get_interface(sr, "eth3");
+            
+            struct sr_if* arr[3];
+            
+            arr[0]= eth1;
+            
+            arr[1]= eth2;
+            
+            arr[2]= eth3;
+            
+            
+            
+            
+            
+            int i=0;
+            
+            for(i;i<3;i++)
+                
+            {
+                
+                /* APR HEADERS
+                 
+                 unsigned short  ar_hrd;                 format of hardware address
+                 
+                 unsigned short  ar_pro;                 format of protocol address
+                 
+                 unsigned char   ar_hln;                 length of hardware address
+                 
+                 unsigned char   ar_pln;                 length of protocol address
+                 
+                 unsigned short  ar_op;                  ARP opcode (command)
+                 
+                 unsigned char   ar_sha[ETHER_ADDR_LEN]; sender hardware address
+                 
+                 uint32_t        ar_sip;                 sender IP address
+                 
+                 unsigned char   ar_tha[ETHER_ADDR_LEN]; target hardware address
+                 
+                 uint32_t        ar_tip;                 target IP address
+                 
+                 */
+                
+                
+                
+                /* Construct the request */
+                
+                struct sr_arp_hdr* arp_request = (struct sr_arp_hdr*)malloc(sizeof(struct sr_arp_hdr));
+                
+                
+                
+                /* Initialize values for arp request */
+                
+                arp_request->ar_hrd = arp_hrd_ethernet;
+                
+                arp_request->ar_pro = ethertype_arp;
+                
+                arp_request->ar_hln = ETHER_ADDR_LEN;
+                
+                arp_request->ar_pln = 4;
+                
+                arp_request->ar_op  = arp_op_request;
+                
+                memcpy(arp_request->ar_sha, arr[i]->addr, ETHER_ADDR_LEN);
+                
+                arp_request->ar_sip = arr[i]->ip;
+                
+                /* memcpy(arp_request->ar_tha, arp_header->ar_tha, ETHER_ADDR_LEN); */
+                
+                arp_request->ar_tip = req->ip;
+                
+                
+                
+                /* Add Ethernet Header */
+                
+                struct sr_ethernet_hdr* ethernet_request = (struct sr_ethernet_hdr*)malloc(sizeof(struct sr_ethernet_hdr));
+                
+                uint8_t tempMac[ETHER_ADDR_LEN];
+                
+                int j=0;
+                
+                for(j;j<6;j++)
+                    
+                {
+                    
+                    tempMac[j]= 0xFF;
+                    
+                }
+                
+                memcpy(ethernet_request->ether_dhost, tempMac, ETHER_ADDR_LEN);
+                
+                memcpy(ethernet_request->ether_shost, arr[i]->addr, ETHER_ADDR_LEN);
+                
+                ethernet_request->ether_type = ethertype_arp;
+                
+                
+                
+                /* Place headers into packet buffer */
+                
+                unsigned int buffer_length = sizeof(struct sr_ethernet_hdr) + sizeof(struct sr_arp_hdr);
+                
+                uint8_t* buffer = (uint8_t*)malloc(buffer_length);
+                
+                memcpy(buffer, ethernet_request, sizeof(struct sr_ethernet_hdr));
+                
+                memcpy(buffer + sizeof(struct sr_ethernet_hdr), arp_request, sizeof(struct sr_arp_hdr));
+                
+                
+                
+                /* Send the packet */
+                
+                int status = sr_send_packet(sr, buffer, buffer_length, arr[i]->name);
+                
+                
+                
+                free(buffer);
+                
+                free(ethernet_request);
+                
+                free(arp_request);
+                
+            } /* end of broadcast arp request */
+            
+            free(eth1);
+            
+            free(eth2);
+            
+            free(eth3);
+            
+            
+            
+            req->sent = now;
+            
+            req->times_sent++;
+            
+        }
+        
+        
+        
+    }
+    
+}
+
+
 

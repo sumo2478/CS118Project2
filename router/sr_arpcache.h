@@ -70,6 +70,10 @@
 #include <time.h>
 #include <pthread.h>
 #include "sr_if.h"
+#include "sr_protocol.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define SR_ARPCACHE_SZ    100  
 #define SR_ARPCACHE_TO    15.0
@@ -143,6 +147,10 @@ void sr_arpreq_destroy(struct sr_arpcache *cache, struct sr_arpreq *entry);
 
 /* Prints out the ARP table. */
 void sr_arpcache_dump(struct sr_arpcache *cache);
+
+/*  The handle_arpreq() function is a function you should write, and it should
+ handle sending ARP requests if necessary */
+void handle_arpreq(struct sr_instance* sr, struct sr_arpreq *req);
 
 /* You shouldn't have to call these methods--they're already called in the
    starter code for you. The init call is a constructor, the destroy call is
