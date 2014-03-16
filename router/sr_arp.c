@@ -48,7 +48,7 @@ int handle_arp(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* 
     	arp_reply->ar_op  = htons(arp_op_reply);
     	memcpy(arp_reply->ar_sha, inter->addr, ETHER_ADDR_LEN);
     	arp_reply->ar_sip = arp_header->ar_tip;
-    	memcpy(arp_reply->ar_tha, arp_header->ar_tha, ETHER_ADDR_LEN);
+    	memcpy(arp_reply->ar_tha, arp_header->ar_sha, ETHER_ADDR_LEN);
     	arp_reply->ar_tip = arp_header->ar_sip;
 
     	/* Add Ethernet Header */
