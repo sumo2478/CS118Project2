@@ -363,7 +363,7 @@ void handle_arpreq(struct sr_instance* sr, struct sr_arpreq *req)
                 
                 arp_request->ar_pln = 4;
                 
-                arp_request->ar_op  = arp_op_request;
+                arp_request->ar_op  = htons(arp_op_request);
                 
                 memcpy(arp_request->ar_sha, arr[i]->addr, ETHER_ADDR_LEN);
                 
