@@ -11,15 +11,6 @@
 #include "sr_if.h"
 #include "sr_protocol.h"
 
-/**
- * Handles an arp request
- * @param arp_request -- request to handle
- */
-void handle_arpreq(struct sr_arpreq* arp_request)
-{
-    /* TODO: Andre Fill this in */
-}
-
 /* 
   This function gets called every second. For each request sent out, we keep
   checking whether we should resend an request or destroy the arp request.

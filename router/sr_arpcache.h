@@ -110,11 +110,6 @@ struct sr_arpcache {
     pthread_mutexattr_t attr;
 };
 
-/**
- * Handles an arp request
- * @param arp_request -- request to handle
- */
-void handle_arpreq(struct sr_arpreq* arp_request);
 
 /* Checks if an IP->MAC mapping is in the cache. IP is in network byte order. 
    You must free the returned structure if it is not NULL. */

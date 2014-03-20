@@ -113,7 +113,7 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 	{	
 		 /* Place headers into packet buffer */
 		struct sr_arpreq* arp_request = sr_arpcache_queuereq(&sr->cache, ip_header->ip_dst, packet, len, destination_node->interface);
-		handle_arpreq(arp_request);
+		handle_arpreq(sr, arp_request);
 		return 0;
 	}
 
