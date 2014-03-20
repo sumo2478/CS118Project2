@@ -11,6 +11,7 @@
 #ifndef sr_ICMP_H
 #define sr_ICMP_H
 
+#include <stdint.h>
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
@@ -18,8 +19,6 @@
 
 #include <stdint.h>
 #include "sr_router.h"
-#include "sr_utils.h"
-#include "sr_ip.h"
 
 #define ICMP_HEADER_LEN 8
 #define IP_HEADER_LEN 20
@@ -31,7 +30,7 @@ void send_icmp_packet (struct sr_instance* sr,
                             unsigned int len,
                             uint8_t icmp_type,
                             uint8_t icmp_code,
-                            uint8_t icmp_rest);
+                            uint32_t icmp_rest);
 
 void handle_icmp (struct sr_instance* sr,
                             uint32_t src_ip_add,
