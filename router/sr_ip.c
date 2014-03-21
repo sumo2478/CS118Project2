@@ -8,34 +8,6 @@
 #include "sr_ip.h"
 #include "sr_utils.h"
 
-uint16_t calculate_checksum(struct sr_ip_hdr* ip_header)
-{
-	uint32_t check_sum = 0; /* Need to use 32 bits because we can have overflow */
-	uint16_t* curr = (uint16_t*)ip_header;
-
-	/* Header length represents the number of 4 byte words and so we want 
-		the number of 2 byte words, which represent 16 bit number for the
-		checksum calculations
-	*/
-	int i;
-	for(i = 0; i < ip_header->ip_hl*2; i++)
-	{
-		check_sum += *curr;
-		curr++;
-	}
-
-	/* Add overflow bits back to the checksum */
-	if (check_sum >> 16)
-	{
-		check_sum = (check_sum & 0xffff) + (check_sum >> 16);
-	}
-
-	/* Perform one's complement */
-	check_sum = ~check_sum;
-
-	return (uint16_t) check_sum;
-}
-
 int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* interface)
 {
 	if (len < sizeof(struct sr_ip_hdr) + sizeof(struct sr_ethernet_hdr))
@@ -50,7 +22,7 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 	/* TODO: Verify checksum is correct */
 	uint16_t original_checksum = ip_header->ip_sum;
 	ip_header->ip_sum = 0;
-	if (original_checksum != calculate_checksum(ip_header))
+	if (original_checksum != cksum(ip_header, sizeof(struct sr_ip_hdr)))
 	{
 		printf("Checksum Error\n");
 		/* TODO: Send ICMP checksum error */
@@ -73,8 +45,7 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 			max_mask = current_mask;
 			destination_node = routing_node;
 		}
-
-
+		
 		routing_node = routing_node->next;
 	}
 
@@ -90,7 +61,7 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 	/* Update values in ip header */
 	ip_header->ip_ttl--;
 	ip_header->ip_sum = 0;
-	ip_header->ip_sum = calculate_checksum(ip_header);
+	ip_header->ip_sum = cksum(ip_header, sizeof(struct sr_ip_hdr));
 
 	/* Determine the MAC address to send to */
 	struct sr_ethernet_hdr* ethernet_reply = (struct sr_ethernet_hdr*) packet;
