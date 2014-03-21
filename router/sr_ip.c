@@ -6,6 +6,7 @@
 #include "sr_router.h"
 #include "sr_rt.h"
 #include "sr_ip.h"
+#include "sr_utils.h"
 
 uint16_t calculate_checksum(struct sr_ip_hdr* ip_header)
 {
@@ -64,12 +65,15 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 	while(routing_node)
 	{
 		/* If the masked address is the closest match then set it to the destination node */
-		unsigned long current_mask = routing_node->mask.s_addr & ip_header->ip_dst;
+		uint32_t mask = routing_node->mask.s_addr & routing_node->dest.s_addr;
+		uint32_t current_mask = mask & ip_header->ip_dst;
+	
 		if (current_mask > max_mask)
 		{
 			max_mask = current_mask;
 			destination_node = routing_node;
 		}
+
 
 		routing_node = routing_node->next;
 	}
@@ -110,13 +114,12 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 	}
 	/* Send new ARP request */
 	else
-	{	
+	{
 		 /* Place headers into packet buffer */
 		struct sr_arpreq* arp_request = sr_arpcache_queuereq(&sr->cache, ip_header->ip_dst, packet, len, destination_node->interface);
 		handle_arpreq(sr, arp_request);
 		return 0;
 	}
 
-    printf("Handling IP packet\n");
     return status;
 }

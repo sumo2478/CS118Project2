@@ -18,7 +18,7 @@
 */
 void sr_arpcache_sweepreqs(struct sr_instance *sr) { 
   
-    printf("Inside of sweepreqs\n");
+    /*printf("Inside of sweepreqs\n");*/
     struct sr_arpreq *itr= sr->cache.requests;
     while(itr != NULL)
     {
@@ -255,36 +255,23 @@ void *sr_arpcache_timeout(void *sr_ptr) {
 
 void handle_arpreq(struct sr_instance* sr, struct sr_arpreq *req)
 
-{
-    
+{    
     time_t now;
     
     time ( &now );
     
     if(difftime(now, req->sent) > 1.0)
-        
     {
-        
-        if(req->times_sent >= 5)
-            
+        if(req->times_sent >= 5)       
         {
             
             /* Send icmp host unreachable to source addr of all pkts waiting on this request */
             printf("Destroying request\n");
             sr_arpreq_destroy(&sr->cache, req);
-            
         }
-        
-        else
-            
+        else   
         {
-            
-            /* Broadcast arp request */
-            
-            printf("Inside of handle arprequest\n");
-            
             /*Construct an interface holders*/
-            printf("constructing interface holders\n");
             
             struct sr_if* eth1;
             
@@ -306,7 +293,7 @@ void handle_arpreq(struct sr_instance* sr, struct sr_arpreq *req)
             
             arr[2]= eth3;
             
-            printf("finished constructing interface holders\n");
+            /*printf("finished constructing interface holders\n");*/
             
             
         
@@ -315,7 +302,7 @@ void handle_arpreq(struct sr_instance* sr, struct sr_arpreq *req)
             for(i;i<3;i++)
                 
             {
-                printf("constructing and sending ARP request\n");
+                /*printf("constructing and sending ARP request\n");*/
                 /* APR HEADERS
                  
                  unsigned short  ar_hrd;                 format of hardware address
@@ -336,27 +323,20 @@ void handle_arpreq(struct sr_instance* sr, struct sr_arpreq *req)
                  
                  uint32_t        ar_tip;                 target IP address
                  
-                 */
-                
-                
+                 */                
                 
                 /* Construct the request */
                 
                 struct sr_arp_hdr* arp_request = (struct sr_arp_hdr*)malloc(sizeof(struct sr_arp_hdr));
-                
-                
-                
+                                
                 /* Initialize values for arp request */
                 
                 uint8_t tempTarget[ETHER_ADDR_LEN];
                 int z=0;
                 
                 for(z;z<6;z++)
-                    
                 {
-                    
-                    tempTarget[z]= 0x00;
-                    
+                    tempTarget[z]= 0xFF;
                 }
                 
                 arp_request->ar_hrd = htons(arp_hrd_ethernet);
@@ -399,8 +379,6 @@ void handle_arpreq(struct sr_instance* sr, struct sr_arpreq *req)
                 
                 ethernet_request->ether_type = htons(ethertype_arp);
                 
-                
-                
                 /* Place headers into packet buffer */
                 
                 unsigned int buffer_length = sizeof(struct sr_ethernet_hdr) + sizeof(struct sr_arp_hdr);
@@ -411,15 +389,8 @@ void handle_arpreq(struct sr_instance* sr, struct sr_arpreq *req)
                 
                 memcpy(buffer + sizeof(struct sr_ethernet_hdr), arp_request, sizeof(struct sr_arp_hdr));
                 
-                printf("printing buffer about to get sent out ");
-                print_hdrs(buffer, buffer_length);
-                printf("\n");
-                /* Send the packet */
-                printf("Sending out ARP request\n");
                 int status = sr_send_packet(sr, buffer, buffer_length, arr[i]->name);
-                printf("Finished sending ARP request\n");
-                
-                
+                                
                 free(buffer);
                 
                 free(ethernet_request);

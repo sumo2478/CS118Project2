@@ -79,7 +79,7 @@ void sr_handlepacket(struct sr_instance* sr,
   assert(interface);
 
   printf("*** -> Received packet of length %d \n",len);
-  print_hdrs(packet, len);
+  /*print_hdrs(packet, len);*/
   /* fill in code here */
 
   /* Obtain the ethernet header*/
@@ -88,6 +88,8 @@ void sr_handlepacket(struct sr_instance* sr,
   /* Determine the type of ethernet frame */
   if (ntohs(eth_header->ether_type) == ethertype_ip)
   {
+    printf("Handling ip packet\n");
+    print_hdrs(packet, len);
     handle_ip(sr, packet, len, interface);
     /* Handle IP Frame */
   } 

@@ -5,6 +5,7 @@
 #include "sr_protocol.h"
 #include "sr_router.h"
 #include "sr_if.h"
+#include "sr_utils.h"
 
 
 /**
@@ -75,6 +76,7 @@ int handle_arp(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* 
     }else if(ntohs(arp_header->ar_op) == arp_op_reply)
     {
     	printf("Handling ARP Reply\n");
+        print_hdrs(packet, len);
 
         /* Insert the MAC to IP mapping into the cache */
         struct sr_arpreq* req = sr_arpcache_insert(&sr->cache, eth_header->ether_shost, arp_header->ar_sip);
@@ -90,6 +92,9 @@ int handle_arp(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* 
                 /* Add in the destination MAC address for the packet */
                 struct sr_ethernet_hdr* ethernet_packet = (struct sr_ethernet_hdr*) current_packet->buf;
                 memcpy(ethernet_packet->ether_dhost, eth_header->ether_shost, ETHER_ADDR_LEN);
+                memcpy(ethernet_packet->ether_shost, eth_header->ether_dhost, ETHER_ADDR_LEN);
+
+                print_hdrs(current_packet->buf, current_packet->len);
 
                 sr_send_packet(sr, current_packet->buf, current_packet->len, current_packet->iface);
                 current_packet = current_packet->next;
