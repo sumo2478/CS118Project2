@@ -10,14 +10,15 @@
 #include "sr_router.h"
 #include "sr_if.h"
 #include "sr_protocol.h"
-
+#include "sr_utils.h"
 /* 
   This function gets called every second. For each request sent out, we keep
   checking whether we should resend an request or destroy the arp request.
   See the comments in the header file for an idea of what it should look like.
 */
 void sr_arpcache_sweepreqs(struct sr_instance *sr) { 
-    
+  
+    printf("Inside of sweepreqs\n");
     struct sr_arpreq *itr= sr->cache.requests;
     while(itr != NULL)
     {
@@ -269,7 +270,7 @@ void handle_arpreq(struct sr_instance* sr, struct sr_arpreq *req)
         {
             
             /* Send icmp host unreachable to source addr of all pkts waiting on this request */
-            
+            printf("Destroying request\n");
             sr_arpreq_destroy(&sr->cache, req);
             
         }
@@ -280,15 +281,16 @@ void handle_arpreq(struct sr_instance* sr, struct sr_arpreq *req)
             
             /* Broadcast arp request */
             
-            
+            printf("Inside of handle arprequest\n");
             
             /*Construct an interface holders*/
+            printf("constructing interface holders\n");
             
-            struct sr_if* eth1 = (struct sr_if*)malloc(sizeof(struct sr_if));
+            struct sr_if* eth1;
             
-            struct sr_if* eth2 = (struct sr_if*)malloc(sizeof(struct sr_if));
+            struct sr_if* eth2;
             
-            struct sr_if* eth3 = (struct sr_if*)malloc(sizeof(struct sr_if));
+            struct sr_if* eth3;
             
             eth1= sr_get_interface(sr, "eth1");
             
@@ -304,16 +306,16 @@ void handle_arpreq(struct sr_instance* sr, struct sr_arpreq *req)
             
             arr[2]= eth3;
             
+            printf("finished constructing interface holders\n");
             
             
-            
-            
+        
             int i=0;
             
             for(i;i<3;i++)
                 
             {
-                
+                printf("constructing and sending ARP request\n");
                 /* APR HEADERS
                  
                  unsigned short  ar_hrd;                 format of hardware address
@@ -346,13 +348,24 @@ void handle_arpreq(struct sr_instance* sr, struct sr_arpreq *req)
                 
                 /* Initialize values for arp request */
                 
-                arp_request->ar_hrd = arp_hrd_ethernet;
+                uint8_t tempTarget[ETHER_ADDR_LEN];
+                int z=0;
                 
-                arp_request->ar_pro = ethertype_arp;
+                for(z;z<6;z++)
+                    
+                {
+                    
+                    tempTarget[z]= 0x00;
+                    
+                }
+                
+                arp_request->ar_hrd = htons(arp_hrd_ethernet);
+                
+                arp_request->ar_pro = htons(ethertype_ip);
                 
                 arp_request->ar_hln = ETHER_ADDR_LEN;
                 
-                arp_request->ar_pln = 4;
+                arp_request->ar_pln = 0x0004;
                 
                 arp_request->ar_op  = htons(arp_op_request);
                 
@@ -360,11 +373,9 @@ void handle_arpreq(struct sr_instance* sr, struct sr_arpreq *req)
                 
                 arp_request->ar_sip = arr[i]->ip;
                 
-                /* memcpy(arp_request->ar_tha, arp_header->ar_tha, ETHER_ADDR_LEN); */
+                memcpy(arp_request->ar_tha, tempTarget, ETHER_ADDR_LEN);
                 
                 arp_request->ar_tip = req->ip;
-                
-                
                 
                 /* Add Ethernet Header */
                 
@@ -386,7 +397,7 @@ void handle_arpreq(struct sr_instance* sr, struct sr_arpreq *req)
                 
                 memcpy(ethernet_request->ether_shost, arr[i]->addr, ETHER_ADDR_LEN);
                 
-                ethernet_request->ether_type = ethertype_arp;
+                ethernet_request->ether_type = htons(ethertype_arp);
                 
                 
                 
@@ -400,12 +411,13 @@ void handle_arpreq(struct sr_instance* sr, struct sr_arpreq *req)
                 
                 memcpy(buffer + sizeof(struct sr_ethernet_hdr), arp_request, sizeof(struct sr_arp_hdr));
                 
-                
-                
+                printf("printing buffer about to get sent out ");
+                print_hdrs(buffer, buffer_length);
+                printf("\n");
                 /* Send the packet */
-                
+                printf("Sending out ARP request\n");
                 int status = sr_send_packet(sr, buffer, buffer_length, arr[i]->name);
-                
+                printf("Finished sending ARP request\n");
                 
                 
                 free(buffer);
@@ -415,13 +427,6 @@ void handle_arpreq(struct sr_instance* sr, struct sr_arpreq *req)
                 free(arp_request);
                 
             } /* end of broadcast arp request */
-            
-            free(eth1);
-            
-            free(eth2);
-            
-            free(eth3);
-            
             
             
             req->sent = now;
