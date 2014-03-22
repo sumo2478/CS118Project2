@@ -11,6 +11,7 @@
 #include "sr_if.h"
 #include "sr_protocol.h"
 #include "sr_utils.h"
+#include "sr_rt.h"
 /* 
   This function gets called every second. For each request sent out, we keep
   checking whether we should resend an request or destroy the arp request.
@@ -266,6 +267,47 @@ void handle_arpreq(struct sr_instance* sr, struct sr_arpreq *req)
         {
             
             /* Send icmp host unreachable to source addr of all pkts waiting on this request */
+            struct sr_packet* curr= req->packets;
+            while(curr != NULL)
+            {
+                struct sr_rt* routing_node = sr->routing_table;
+                unsigned long max_mask = 0; 		   /* The closest anded mask to the current packet */
+                struct sr_rt* destination_node = NULL; /* The destination node that should be sent to given the routing table */
+                
+                struct sr_ethernet_hdr* eth_header = (struct sr_ethernet_hdr*) curr->buf;
+                
+                uint32_t ipdst= 0;
+                
+                if(eth_header->ether_type == 0x0800)
+                {
+                    struct sr_ip_hdr* ip_header= (struct sr_ip_hdr*)(curr->buf + sizeof(sr_ethernet_hdr_t));
+                    ipdst= ip_header->ip_dst;
+                }
+                else
+                {
+                    struct sr_arp_hdr* arp_header = (struct sr_arp_hdr*)(curr->buf + sizeof(sr_ethernet_hdr_t));
+                    ipdst= arp_header->ar_tip;
+                }
+                
+                while(routing_node)
+                {
+                    /* If the masked address is the closest match then set it to the destination node */
+                    
+                    unsigned long current_mask = routing_node->mask.s_addr & ipdst;
+                    if (current_mask > max_mask)
+                    {
+                        max_mask = current_mask;
+                        destination_node = routing_node;
+                    }
+                    
+                    routing_node = routing_node->next;
+                }
+
+                
+                send_icmp_packet(sr, curr->buf, curr->len, 3, 1, destination_node->interface);
+
+                curr= curr->next;
+            }
             printf("Destroying request\n");
             sr_arpreq_destroy(&sr->cache, req);
         }
