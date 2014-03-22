@@ -47,87 +47,72 @@ typedef struct sr_icmp_t3_hdr sr_icmp_t3_hdr_t;
 #include "sr_ip.h"
 #include "sr_icmp.h"
 #include "sr_protocol.h"
- #include "sr_rt.h"
+#include "sr_rt.h"
 
-
-void send_icmp_packet (struct sr_instance* sr,
-                            uint32_t dest_ip,
-                            uint32_t src_ip,
-                            uint8_t * data,
-                            unsigned int len,
-                            uint8_t icmp_type,
-                            uint8_t icmp_code,
-                            uint32_t icmp_rest)
+void send_icmp_packet(struct sr_instance* sr, 
+                      uint8_t* packet,
+                      unsigned int len,
+                      uint8_t icmp_type, 
+                      uint8_t icmp_code,
+                      char* interface
+                      )
 {
-	/* Make icmp_header
-		
-	*/
-	uint8_t* buffer = malloc(ICMP_HEADER_LEN + len);
-	struct sr_icmp_hdr* icmp_header = (struct sr_icmp_hdr*) buffer;
+	struct sr_ethernet_hdr* ethernet_header = (struct sr_ethernet_hdr*) packet;
+	struct sr_ip_hdr* ip_header = (struct sr_ip_hdr*) (packet + sizeof(struct sr_ethernet_hdr));
 
-	icmp_header ->icmp_type = icmp_type;
-	icmp_header ->icmp_code = icmp_code;
-	icmp_header ->icmp_rest = icmp_rest;
+	/* Form the ICMP Header */
+	struct sr_icmp_t3_hdr* icmp_header = malloc(sizeof(struct sr_icmp_t3_hdr));
+	icmp_header->icmp_type = icmp_type;
+	icmp_header->icmp_code = icmp_code;
+	icmp_header->unused = 0;
+	icmp_header->next_mtu = 0;
+	memcpy(icmp_header->data, ip_header, ICMP_DATA_SIZE);
 
-	icmp_header ->icmp_sum = 0;
-	memcpy(buffer + ICMP_HEADER_LEN, data, len);
+	icmp_header->icmp_sum = 0;
+	icmp_header->icmp_sum  = cksum(icmp_header, sizeof(struct sr_icmp_t3_hdr));
 
-	icmp_header->icmp_sum = cksum(icmp_header, ICMP_HEADER_LEN + len);
-	
-	int through = 0;
-	if(src_ip != 0)
-		through = 1;
+	/* Form the IP Reply Header*/
+	struct sr_ip_hdr* ip_reply = malloc(sizeof(struct sr_ip_hdr));
+	ip_reply->ip_v = 4;
+    ip_reply->ip_hl = 5;
+    ip_reply->ip_len = htons(sizeof(struct sr_ip_hdr) + sizeof(struct sr_icmp_t3_hdr));
+    ip_reply->ip_tos = 0;
+    ip_reply->ip_id = 0;
+    ip_reply->ip_off = htons(IP_DF);
+    ip_reply->ip_ttl = 64;
+    ip_reply->ip_p = ip_protocol_icmp;
+    ip_reply->ip_src = ip_header->ip_dst;
+    ip_reply->ip_dst = ip_header->ip_src;
 
+    ip_reply->ip_sum = 0;
+    ip_reply->ip_sum = cksum(ip_reply, sizeof(struct sr_ip_hdr));
 
-	struct sr_rt* routing_node = sr->routing_table;
-	unsigned long max_mask = 0; 		   
-	struct sr_rt* destination_node = NULL; 
+    /* Form the Ethernet Reply Header */
+    struct sr_ethernet_hdr* ethernet_reply = malloc(sizeof(struct sr_ethernet_hdr));
+    memcpy(ethernet_reply->ether_dhost, ethernet_header->ether_shost, ETHER_ADDR_LEN);
+    memcpy(ethernet_reply->ether_shost, ethernet_header->ether_dhost, ETHER_ADDR_LEN);
+    ethernet_reply->ether_type = htons(ethertype_ip);
 
-	while(routing_node)
-	{
-		unsigned long current_mask = routing_node->mask.s_addr & dest_ip;
-		if (current_mask > max_mask)
-		{
-			max_mask = current_mask;
-			destination_node = routing_node;
-		}
+    unsigned int buffer_length = sizeof(struct sr_ethernet_hdr) + sizeof(struct sr_ip_hdr) + sizeof(struct sr_icmp_t3_hdr);
+    uint8_t* buffer = (uint8_t*) malloc(buffer_length);
 
-		routing_node = routing_node->next;
-	}
+    memcpy(buffer, ethernet_reply, sizeof(struct sr_ethernet_hdr));
+    memcpy(buffer + sizeof(struct sr_ethernet_hdr), ip_reply, sizeof(struct sr_ip_hdr));
+    memcpy(buffer + sizeof(struct sr_ethernet_hdr) + sizeof(struct sr_ip_hdr), icmp_header, sizeof(struct sr_icmp_t3_hdr));
 
+    printf("Sending ICMP Reply: \n");
+    print_hdrs(buffer, buffer_length);
 
-	if(through == 0) {
-		struct sr_if* routing_interface = sr_get_interface(sr, destination_node->interface); 
-		if(routing_interface == NULL)
-			return;
-		dest_ip = routing_interface->ip;
-	}
+    sr_send_packet(sr, buffer, buffer_length, interface);
 
-	/* Make IP header */
-	uint8_t* ip_buffer = malloc(IP_HEADER_LEN + len);
-	memset(ip_buffer, 0, IP_HEADER_LEN + len);
-    struct sr_ip_hdr * ip_header = (struct sr_ip_hdr*) ip_buffer;
-    ip_header->ip_v = 4;
-    ip_header->ip_hl = 5;
-    ip_header->ip_len = htons(IP_HEADER_LEN + len);
-    ip_header->ip_ttl = 64;
-    ip_header->ip_p = ip_protocol_icmp;
-    ip_header->ip_src = src_ip;
-    ip_header->ip_dst = dest_ip;
-    
-    memcpy( ip_buffer + IP_HEADER_LEN, buffer, len );
-    ip_header->ip_sum = 0;
-    ip_header->ip_sum = cksum(ip_header, IP_HEADER_LEN);
-    
-	int status = handle_ip(sr, ip_buffer, IP_HEADER_LEN + len, NULL);
-	if(!status) {
-		perror("Error: sending packet \n");
-	}
-
-	free(ip_buffer);
+	free(icmp_header);
+	free(ip_reply);
+	free(ethernet_reply);
 	free(buffer);
 }
 
+
+/*
 void handle_icmp (struct sr_instance* sr,
                             uint32_t src_ip_add,
                             uint32_t dest_ip_add,
@@ -160,4 +145,4 @@ void handle_icmp (struct sr_instance* sr,
 
 		send_icmp_packet(sr, src_ip_add, dest_ip_add, packet, len_to_send, icmp_type, icmp_code, 0);
 	}
-}
+}*/

@@ -7,6 +7,7 @@
 #include "sr_rt.h"
 #include "sr_ip.h"
 #include "sr_utils.h"
+#include "sr_icmp.h"
 
 int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* interface)
 {
@@ -41,7 +42,7 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 		}else
 		{
 			/* Send back Destination host unreachable */
-			/*send_icmp_packet(type=3, code=3, packet, len)*/
+			send_icmp_packet(sr, packet, len, 3, 3, interface);
 			printf("Port Unreachable\n");
 		}
 
