@@ -22,7 +22,7 @@
 
 #define ICMP_HEADER_LEN 8
 #define IP_HEADER_LEN 20
-
+/*
 void send_icmp_packet (struct sr_instance* sr,
                             uint32_t dest_ip,
                             uint32_t src_ip,
@@ -39,5 +39,10 @@ void handle_icmp (struct sr_instance* sr,
                             unsigned int len, 
                             uint8_t icmp_type,
                             uint8_t icmp_code);
+*/
+
+void handle_icmp_echo(struct sr_instance * sr, char * interface, uint8_t * packet,unsigned int len);
+
+void send_icmp_packet(struct sr_instance * sr, char * interface, uint8_t * packet, int type, int code);
 
 #endif
