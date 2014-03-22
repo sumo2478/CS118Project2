@@ -35,15 +35,13 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 	struct sr_if* eth2 = sr_get_interface(sr, "eth2");
 	struct sr_if* eth3 = sr_get_interface(sr, "eth3");
 
-	int i = 0;
-	for (i ; i < 3; i++)
-	{
-		if (eth1->ip == ip_header->ip_dst)
-		{
-			dest_source = 1;
-			break;
-		}
-	}
+	
+	if (eth1->ip == ip_header->ip_dst)
+		dest_source = 1;
+	else if (eth2->ip == ip_header->ip_dst)
+		dest_source = 1;
+	else if (eth3->ip == ip_header->ip_dst)
+		dest_source = 1;
 
 	if (dest_source)
 	{
