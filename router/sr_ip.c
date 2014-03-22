@@ -14,31 +14,44 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 	if (len < sizeof(struct sr_ip_hdr) + sizeof(struct sr_ethernet_hdr))
 	{
 		printf("Bad IP Packet\n");
-		/* TODO: Send ICMP Bad IP Packet error */
 		return -1;
 	}
 
 	struct sr_ip_hdr* ip_header = (struct sr_ip_hdr*) (packet + sizeof(struct sr_ethernet_hdr));
 
-	/* TODO: Verify checksum is correct */
+	/* Verify Checksum */
 	uint16_t original_checksum = ip_header->ip_sum;
 	ip_header->ip_sum = 0;
 	if (original_checksum != cksum(ip_header, sizeof(struct sr_ip_hdr)))
 	{
 		printf("Checksum Error\n");
-		/* TODO: Send ICMP checksum error */
 		return -1;
 	}
 
 	/* If the destination was pointed to the router interface then handle it based on the protocol */
-	struct sr_if* received_interface = sr_get_interface(sr, interface);
-	if (received_interface->ip == ip_header->ip_dst)
+
+	int dest_source = 0;
+	struct sr_if* eth1 = sr_get_interface(sr, "eth1");
+	struct sr_if* eth2 = sr_get_interface(sr, "eth2");
+	struct sr_if* eth3 = sr_get_interface(sr, "eth3");
+
+	int i = 0;
+	for (i ; i < 3; i++)
+	{
+		if (eth1->ip == ip_header->ip_dst)
+		{
+			dest_source = 1;
+			break;
+		}
+	}
+
+	if (dest_source)
 	{
 		if (ip_header->ip_p == ip_protocol_icmp)
 		{
 			printf("Handle ICMP\n");
 			/* handle_icmp should only take in instance, buffer, length, and interface */
-			/*handle_icmp(sr, packet, len, interface);*/
+			handle_icmp(sr, packet, len, interface);
 		}else
 		{
 			/* Send back Destination host unreachable */
@@ -74,7 +87,7 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 	if (ip_header->ip_ttl == 1)
 	{
 		printf("TTL expired\n");
-		/* TODO: Send ICMP checksum error */
+		send_icmp_packet(sr, packet, len, 11, 0, interface);
 		return -1;
 	}
 

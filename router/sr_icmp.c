@@ -64,8 +64,18 @@ void send_icmp_packet(struct sr_instance* sr,
 	struct sr_icmp_t3_hdr* icmp_header = malloc(sizeof(struct sr_icmp_t3_hdr));
 	icmp_header->icmp_type = icmp_type;
 	icmp_header->icmp_code = icmp_code;
-	icmp_header->unused = 0;
-	icmp_header->next_mtu = 0;
+	if (icmp_code == 0)
+	{
+		printf("Pinging...\n");
+		struct sr_icmp_t3_hdr* icmp_request = (struct sr_icmp_t3_hdr*) (packet + sizeof(struct sr_ethernet_hdr) + sizeof(struct sr_ip_hdr));
+		icmp_header->unused = icmp_request->unused;
+		icmp_header->next_mtu = icmp_request->next_mtu;
+	}else
+	{
+		icmp_header->unused = 0;
+		icmp_header->next_mtu = 0;	
+	}
+	
 	memcpy(icmp_header->data, ip_header, ICMP_DATA_SIZE);
 
 	icmp_header->icmp_sum = 0;
@@ -81,7 +91,10 @@ void send_icmp_packet(struct sr_instance* sr,
     ip_reply->ip_off = htons(IP_DF);
     ip_reply->ip_ttl = 64;
     ip_reply->ip_p = ip_protocol_icmp;
-    ip_reply->ip_src = ip_header->ip_dst;
+
+    struct sr_if* iface = sr_get_interface(sr, interface);
+    ip_reply->ip_src = iface->ip;
+
     ip_reply->ip_dst = ip_header->ip_src;
 
     ip_reply->ip_sum = 0;
@@ -109,6 +122,20 @@ void send_icmp_packet(struct sr_instance* sr,
 	free(ip_reply);
 	free(ethernet_reply);
 	free(buffer);
+}
+
+void handle_icmp (struct sr_instance* sr,
+                  uint8_t* packet,
+                  unsigned int len,                                 
+                  char* interface)
+{
+	struct sr_icmp_t3_hdr* icmp_header = (struct sr_icmp_t3_hdr*) (packet + sizeof(struct sr_ethernet_hdr) + sizeof(struct sr_ip_hdr));
+
+	/* If it is a ping request respond with a ping reply */
+	if (icmp_header->icmp_type == 8)
+	{
+		send_icmp_packet(sr, packet, len, 0, 0, interface);
+	}
 }
 
 
