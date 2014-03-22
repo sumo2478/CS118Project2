@@ -1,0 +1,12 @@
+Project members: Collin Yen, Alex Guo, Andre Hsu
+
+Collin Yen: Handled the IP forwarding, the ARP request and reply, and a lot
+of the ICMP
+
+Andre Hsu: Handled the ARP Cache
+
+Alex Guo: Handled part of the ICMP
+
+We created separate files for handling ip in sr_ip.h/c, arp in sr_arp.h/c,
+and icmp in sr_icmp.h/c. It was also necessary for us to modify sr_router.c
+and sr_arpcache.c.
