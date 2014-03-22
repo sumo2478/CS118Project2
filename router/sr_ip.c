@@ -29,10 +29,29 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 		return -1;
 	}
 
+	/* If the destination was pointed to the router interface then handle it based on the protocol */
+	struct sr_if* received_interface = sr_get_interface(sr, interface);
+	if (received_interface->ip == ip_header->ip_dst)
+	{
+		if (ip_header->ip_p == ip_protocol_icmp)
+		{
+			printf("Handle ICMP\n");
+			/* handle_icmp should only take in instance, buffer, length, and interface */
+			/*handle_icmp(sr, packet, len, interface);*/
+		}else
+		{
+			/* Send back Destination host unreachable */
+			/*send_icmp_packet(type=3, code=3, packet, len)*/
+			printf("Port Unreachable\n");
+		}
+
+		return 0;
+	}
+
 	/* Determine the next ip destination */
 	struct sr_rt* routing_node = sr->routing_table;
 	unsigned long max_mask = 0; 		   /* The closest anded mask to the current packet */
-	struct sr_rt* destination_node = NULL; /* The destination node that should be sent to given the routing table */
+	struct sr_rt* destination_node = NULL; /* The destination node that should be sent to given the routing table */ 
 
 	while(routing_node)
 	{
@@ -45,7 +64,7 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 			max_mask = current_mask;
 			destination_node = routing_node;
 		}
-		
+
 		routing_node = routing_node->next;
 	}
 
@@ -65,7 +84,7 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 
 	/* Determine the MAC address to send to */
 	struct sr_ethernet_hdr* ethernet_reply = (struct sr_ethernet_hdr*) packet;
-	struct sr_if* routing_interface = sr_get_interface(sr, destination_node->interface); 
+	struct sr_if* routing_interface = sr_get_interface(sr, destination_node->interface);
 
 	memcpy(ethernet_reply->ether_shost, routing_interface->addr, ETHER_ADDR_LEN);
 
