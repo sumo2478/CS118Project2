@@ -98,8 +98,6 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 	struct sr_ethernet_hdr* ethernet_reply = (struct sr_ethernet_hdr*) packet;
 	struct sr_if* routing_interface = sr_get_interface(sr, destination_node->interface);
 
-	memcpy(ethernet_reply->ether_shost, routing_interface->addr, ETHER_ADDR_LEN);
-
 	struct sr_arpentry* arp_entry = sr_arpcache_lookup(&sr->cache, ip_header->ip_dst);
 
 	int status = 0;
@@ -107,6 +105,7 @@ int handle_ip(struct sr_instance* sr, uint8_t* packet, unsigned int len, char* i
 	if (arp_entry)
 	{
 		/* Set the destination MAC address */
+		memcpy(ethernet_reply->ether_shost, routing_interface->addr, ETHER_ADDR_LEN);
 		memcpy(ethernet_reply->ether_dhost, arp_entry->mac, ETHER_ADDR_LEN);
 
 		 /* Place headers into packet buffer */

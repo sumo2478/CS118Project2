@@ -281,12 +281,12 @@ void handle_arpreq(struct sr_instance* sr, struct sr_arpreq *req)
                 if(eth_header->ether_type == 0x0800)
                 {
                     struct sr_ip_hdr* ip_header= (struct sr_ip_hdr*)(curr->buf + sizeof(sr_ethernet_hdr_t));
-                    ipdst= ip_header->ip_dst;
+                    ipdst = ip_header->ip_src;
                 }
                 else
                 {
                     struct sr_arp_hdr* arp_header = (struct sr_arp_hdr*)(curr->buf + sizeof(sr_ethernet_hdr_t));
-                    ipdst= arp_header->ar_tip;
+                    ipdst = arp_header->ar_sip;
                 }
                 
                 while(routing_node)
